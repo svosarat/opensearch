@@ -1,0 +1,77 @@
+---
+_meta:
+  type: "config"
+  config_version: 2
+
+config:
+  dynamic:
+    http:
+      anonymous_auth_enabled: false
+    authc:
+      internal_auth:
+        order: 0
+        description: "HTTP basic authentication using the internal user database"
+        http_enabled: true
+        transport_enabled: true
+        http_authenticator:
+          type: basic
+          challenge: false
+        authentication_backend:
+          type: internal
+      ldap_auth:
+        order: 1
+        description: "Authenticate using LDAP"
+        http_enabled: true
+        transport_enabled: true
+        http_authenticator:
+          type: basic
+          challenge: false
+        authentication_backend:
+          type: ldap
+          config:
+            enable_ssl: true
+            enable_start_tls: false
+            enable_ssl_client_auth: false
+            verify_hostnames: false
+            hosts:
+            - s700dc-01.domain.local:636
+            bind_dn: "cn=a700-opensearch,ou=Сервисные учётные записи,dc=domain,dc=local"
+            password: "secretpassword"
+            users:
+              primary-userbase:
+                base: "cn=a700-admin1,ou=Пользователи,dc=domain,dc=local"
+                search: '(cn={0})'
+              second-userbase:
+                base: "cn=a700-admin2,ou=Пользователи,dc=domain,dc=local"
+                search: '(cn={0})'
+            pemtrustedcas_filepath: "/usr/share/opensearch/config/certificates/AD_CA.pem"
+            username_attribute: cn
+
+    authz:
+      ldap_roles:
+        description: "Authorize using LDAP"
+        http_enabled: true
+        transport_enabled: true
+        authorization_backend:
+          type: ldap
+          config:
+            enable_ssl: true
+            enable_start_tls: false
+            enable_ssl_client_auth: false
+            verify_hostnames: false
+            hosts:
+            - s700dc-01.domain.local:636
+            bind_dn: "cn=a700-opensearch,ou=Сервисные учётные записи,dc=domain,dc=local"
+            password: "secretpassword"
+            userbase: "cn=G700GA-Opensearch_superuser,ou=Служебные группы,dc=domain,dc=local"
+            username_attribute: cn
+            pemtrustedcas_filepath: /usr/share/opensearch/config/certificates/AD_CA.pem
+            skip_users:
+              - admin
+              - kibanaserver
+            rolebase: "cn=G700GA-Opensearch_superuser,ou=Служебные группы,dc=domain,dc=local"
+            rolesearch: (uniqueMember={0})
+            userroleattribute: null
+            userrolename: memberOf, SamAccountName
+            rolename: cn
+            resolve_nested_roles: false
