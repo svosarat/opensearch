@@ -1,0 +1,96 @@
+version: '3.7'
+services:
+  os01:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node1
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms1024m -Xmx1024m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+      node.name: os01
+      discovery.seed_hosts: os01,os02
+      cluster.initial_master_nodes: os01,os02
+      plugins.security.ssl.transport.pemkey_filepath: certificates/os01/os01.key # relative path
+      plugins.security.ssl.transport.pemcert_filepath: certificates/os01/os01.pem
+      plugins.security.ssl.http.pemkey_filepath: certificates/os01/os01.key
+      plugins.security.ssl.http.pemcert_filepath: certificates/os01/os01.pem
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      JAVA_HOME: /usr/share/opensearch/jdk
+      bootstrap.memory_lock: "true" # along with the memlock settings below, disables swapping
+    ulimits: 
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - "/opensearch-data1:/usr/share/opensearch/data"
+      - "./certs:/usr/share/opensearch/config/certificates:ro"
+      - "./opensearch.yml:/usr/share/opensearch/config/opensearch.yml"
+      - "./internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml"
+      - "./config.yml:/usr/share/opensearch/config/opensearch-security/config.yml"
+      - ./roles_mapping.yml:/usr/share/opensearch/config/opensearch-security/roles_mapping.yml
+    ports:
+      - 9200:9200
+      - 9600:9600 # required for Performance Analyzer
+    networks:
+      - opensearch-net
+  os02:
+    image: opensearchproject/opensearch:latest
+    container_name: opensearch-node2
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms1024m -Xmx1024m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+      node.name: os02
+      discovery.seed_hosts: os01,os02
+      cluster.initial_master_nodes: os01,os02
+      plugins.security.ssl.transport.pemkey_filepath: certificates/os02/os02.key # relative path
+      plugins.security.ssl.transport.pemcert_filepath: certificates/os02/os02.pem
+      plugins.security.ssl.http.pemkey_filepath: certificates/os02/os02.key
+      plugins.security.ssl.http.pemcert_filepath: certificates/os02/os02.pem
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      JAVA_HOME: /usr/share/opensearch/jdk
+      bootstrap.memory_lock: "true" # along with the memlock settings below, disables swapping
+    ulimits: 
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - "/opensearch-data2:/usr/share/opensearch/data"
+      - "./certs:/usr/share/opensearch/config/certificates:ro"
+      - "./opensearch.yml:/usr/share/opensearch/config/opensearch.yml"
+      - "./internal_users.yml:/usr/share/opensearch/config/opensearch-security/internal_users.yml"
+      - "./config.yml:/usr/share/opensearch/config/opensearch-security/config.yml"
+      - ./roles_mapping.yml:/usr/share/opensearch/config/opensearch-security/roles_mapping.yml
+    networks:
+      - opensearch-net 
+  osdashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: opensearch-dashboard
+    ports:
+      - 5601:5601
+    volumes:
+      - "./certs:/usr/share/opensearch-dashboards/config/certificates:ro"
+      - "./opensearch_dashboards.yml:/usr/share/opensearch-dashboards/config/opensearch_dashboards.yml"
+    environment:
+      OPENSEARCH_HOSTS: '["https://os01:9200","https://os02:9200"]' # must be a string with no spaces when specified as an environment variable
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+    networks:
+      - opensearch-net
+  logstash:
+    image: opensearchproject/logstash-oss-with-opensearch-output-plugin:latest
+    container_name: logstash
+    volumes:
+      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
+     # - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+     #- ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro,Z
+    ports:
+      - "5044:5044"
+      - "514:514/udp"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - opensearch-net
+    depends_on:
+      - os01
+volumes:
+  opensearch-data1:
+  opensearch-data2:
+networks:
+  opensearch-net:
